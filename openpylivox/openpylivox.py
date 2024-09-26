@@ -1065,7 +1065,7 @@ class _dataCaptureThread(object):
                                 bytePos = 18
 
                                 # single return firmware (relevant for Mid-40 and Mid-100)
-                                # Horizon and Tele-15 sensors also fall under this 'if' statement
+                                # Horizon, Tele-15 and avia sensors also fall under this 'if' statement
                                 if self.firmwareType == 1:
 
                                     # Cartesian Coordinate System
@@ -1195,6 +1195,48 @@ class _dataCaptureThread(object):
                                             if coord1:
                                                 numPts += 1
                                                 binFile.write(data_pc[bytePos:bytePos + 16])
+                                                binFile.write(struct.pack('<d', timestamp_sec))
+                                            else:
+                                                nullPts += 1
+
+                                            bytePos += 16
+
+                                    # Horizon , Avia and Tele-15 Cartesian (triple return)
+                                    elif dataType == 7:
+                                        # to account for first point's timestamp being increment in the loop
+                                        timestamp_sec -=  0.000001389
+                                        for i in range(0, 30):
+
+                                            # Y coordinate (check for non-zero)
+                                            coord3 = struct.unpack('<i', data_pc[bytePos + 4:bytePos + 8])[0]
+
+                                            # timestamp
+                                            timestamp_sec += 0.000002083
+
+                                            if coord3:
+                                                numPts += 1
+                                                binFile.write(data_pc[bytePos:bytePos + 42])
+                                                binFile.write(struct.pack('<d', timestamp_sec))
+                                            else:
+                                                nullPts += 1
+
+                                            bytePos += 42
+
+                                    # Horizon, Avia and Tele-15 Spherical (triple return)
+                                    elif dataType == 8:
+                                        # to account for first point's timestamp being increment in the loop
+                                        timestamp_sec -= 0.000002083
+                                        for i in range(0, 48):
+
+                                            # Distance coordinate (check for non-zero)
+                                            coord1 = struct.unpack('<I', data_pc[bytePos:bytePos + 4])[0]
+
+                                            # timestamp
+                                            timestamp_sec += 0.000002083
+
+                                            if coord1:
+                                                numPts += 1
+                                                binFile.write(data_pc[bytePos:bytePos + 22])
                                                 binFile.write(struct.pack('<d', timestamp_sec))
                                             else:
                                                 nullPts += 1
@@ -1814,6 +1856,8 @@ class openpylivox(object):
                     typeMessage = "Tele-15"
                 elif device_type == 3:
                     typeMessage = "Horizon"
+                elif device_type == 7:
+                    typeMessage = "Avia"
                 else:
                     typeMessage = "UNKNOWN"
 
@@ -3234,7 +3278,7 @@ class openpylivox(object):
             print("      Sensor IP Address(es):  " + str(sensorIPs))
             print("      Data Port Number(s):    " + str(dataPorts))
             print("      Command Port Number(s): " + str(cmdPorts))
-            if self._deviceType == "Horizon" or self._deviceType == "Tele-15":
+            if self._deviceType == "Horizon" or self._deviceType == "Tele-15" or self._deviceType == "Avia":
                 print("      IMU Port Number(s):     " + str(imuPorts))
 
         return [params[0], sensorIPs, dataPorts, cmdPorts, imuPorts]
