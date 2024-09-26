@@ -1204,7 +1204,7 @@ class _dataCaptureThread(object):
                                     # Horizon , Avia and Tele-15 Cartesian (triple return)
                                     elif dataType == 7:
                                         # to account for first point's timestamp being increment in the loop
-                                        timestamp_sec -=  0.000001389
+                                        timestamp_sec -= 0.000001389
                                         for i in range(0, 30):
 
                                             # Y coordinate (check for non-zero)
@@ -1418,7 +1418,7 @@ class _dataCaptureThread(object):
                 if self._showMessages:
                     print("   " + self.sensorIP + self._format_spaces + "   -->     closed BINARY file: " + self.filePathAndName)
                     print("                                (points: " + str(numPts) + " good, " + str(nullPts) + " null, " + str(numPts + nullPts) + " total)")
-                    if self._deviceType == "Horizon" or self._deviceType == "Tele-15":
+                    if self._deviceType == "Horizon" or self._deviceType == "Tele-15" or self._deviceType == "Avia":
                         print("                                (IMU records: " + str(imu_records) + ")")
 
                 binFile.close()
@@ -3523,6 +3523,10 @@ def _convertBin2CSV(filePathAndName, deleteBin):
                                 csvFile.write("//Distance,Zenith,Azimuth,Inten-sity,Time,ReturnNum,ReturnType,sConf,iConf\n")
                                 dataClass = 8
                                 divisor = 24
+                            elif firmwareType == 1 and dataType == 7:
+                                csvFile.write("//X,Y,Z,Inten-sity,Time,ReturnNum,ReturnType,sConf,iConf,sConf,iConf\n")
+                                dataClass = 9
+                                divisor = 36
 
                             num_recs = int(bin_size / divisor)
                             pbari = tqdm(total=num_recs, unit=" pts", desc="   ")
@@ -3626,6 +3630,47 @@ def _convertBin2CSV(filePathAndName, deleteBin):
                                         spatial_confb = str(int(tag_bitsb[0:2], 2))
                                         intensity_confb = str(int(tag_bitsb[2:4], 2))
                                         returnTypeb = str(int(tag_bitsb[4:6], 2))
+
+                                        timestamp_sec = float(struct.unpack('<d', binFile.read(8))[0])
+
+                                        csvFile.write("{0:.3f}".format(coord1a) + "," + "{0:.3f}".format(
+                                            coord2a) + "," + "{0:.3f}".format(coord3a) + "," + str(
+                                            intensitya) + "," + "{0:.6f}".format(timestamp_sec) + ",1," + returnTypea + ","
+                                                      + spatial_confa + "," + intensity_confa + "\n")
+
+                                        csvFile.write("{0:.3f}".format(coord1b) + "," + "{0:.3f}".format(
+                                            coord2b) + "," + "{0:.3f}".format(coord3b) + "," + str(
+                                            intensityb) + "," + "{0:.6f}".format(timestamp_sec) + ",2," + returnTypeb + ","
+                                                      + spatial_confb + "," + intensity_confb + "\n")
+
+                                    # Avia Cartesian tri return (SDK Data Type 7)
+                                    elif dataClass == 9:
+                                        coord1a = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        coord2a = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        coord3a = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        intensitya = struct.unpack('<B', binFile.read(1))[0]
+                                        tag_bitsa = str(bin(int.from_bytes(binFile.read(1), byteorder='little')))[2:].zfill(8)
+                                        spatial_confa = str(int(tag_bitsa[0:2], 2))
+                                        intensity_confa = str(int(tag_bitsa[2:4], 2))
+                                        returnTypea = str(int(tag_bitsa[4:6], 2))
+
+                                        coord1b = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        coord2b = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        coord3b = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        intensityb = struct.unpack('<B', binFile.read(1))[0]
+                                        tag_bitsb = str(bin(int.from_bytes(binFile.read(1), byteorder='little')))[2:].zfill(8)
+                                        spatial_confb = str(int(tag_bitsb[0:2], 2))
+                                        intensity_confb = str(int(tag_bitsb[2:4], 2))
+                                        returnTypeb = str(int(tag_bitsb[4:6], 2))
+
+                                        coord1c = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        coord2c = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        coord3c = float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0
+                                        intensityc = struct.unpack('<B', binFile.read(1))[0]
+                                        tag_bitsc = str(bin(int.from_bytes(binFile.read(1), byteorder='little')))[2:].zfill(8)
+                                        spatial_confc = str(int(tag_bitsb[0:2], 2))
+                                        intensity_confc = str(int(tag_bitsb[2:4], 2))
+                                        returnTypec = str(int(tag_bitsb[4:6], 2))
 
                                         timestamp_sec = float(struct.unpack('<d', binFile.read(8))[0])
 
@@ -3797,6 +3842,9 @@ def _convertBin2LAS(filePathAndName, deleteBin):
                         elif firmwareType == 1 and dataType == 4:
                             dataClass = 7
                             divisor = 36
+                        elif firmwareType == 1 and dataType == 7:
+                            dataClass = 9
+                            divisor = 36
 
                         num_recs = int(bin_size / divisor)
                         pbari = tqdm(total=num_recs, unit=" pts", desc="   ")
@@ -3846,6 +3894,33 @@ def _convertBin2LAS(filePathAndName, deleteBin):
                                     intensity.append(struct.unpack('<B', binFile.read(1))[0])
                                     tag_bits = str(bin(int.from_bytes(binFile.read(1), byteorder='little')))[2:].zfill(8)
                                     returnNums.append(2)
+
+                                    timestamp_sec = float(struct.unpack('<d', binFile.read(8))[0])
+                                    times.append(timestamp_sec)
+                                    times.append(timestamp_sec)
+
+                                # Horizon/Tele-15 Cartesian dual return (SDK Data Type 4)
+                                elif dataClass == 9:
+                                    coord1s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    coord2s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    coord3s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    intensity.append(struct.unpack('<B', binFile.read(1))[0])
+                                    tag_bits = str(bin(int.from_bytes(binFile.read(1), byteorder='little')))[2:].zfill(8)
+                                    returnNums.append(1)
+
+                                    coord1s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    coord2s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    coord3s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    intensity.append(struct.unpack('<B', binFile.read(1))[0])
+                                    tag_bits = str(bin(int.from_bytes(binFile.read(1), byteorder='little')))[2:].zfill(8)
+                                    returnNums.append(2)
+
+                                    coord1s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    coord2s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    coord3s.append(float(struct.unpack('<i', binFile.read(4))[0]) / 1000.0)
+                                    intensity.append(struct.unpack('<B', binFile.read(1))[0])
+                                    tag_bits = str(bin(int.from_bytes(binFile.read(1), byteorder='little')))[2:].zfill(8)
+                                    returnNums.append(3)
 
                                     timestamp_sec = float(struct.unpack('<d', binFile.read(8))[0])
                                     times.append(timestamp_sec)
