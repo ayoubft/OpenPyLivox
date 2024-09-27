@@ -3489,7 +3489,7 @@ def _convertBin2CSV(filePathAndName, deleteBin):
                     divisor = 1
 
                     if firmwareType >= 1 and firmwareType <= 3:
-                        if dataType >= 0 and dataType <= 5:
+                        if dataType >= 0 and dataType <= 7:
                             print("CONVERTING OPL BINARY DATA, PLEASE WAIT...")
                             if firmwareType == 1 and dataType == 0:
                                 csvFile.write("//X,Y,Z,Inten-sity,Time,ReturnNum\n")
